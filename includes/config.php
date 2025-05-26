@@ -1,0 +1,25 @@
+<?php
+// 데이터베이스 설정 (XAMPP 기본값)
+define('DB_HOST', 'localhost');        // 호스트 (거의 항상 localhost)
+define('DB_USER', 'root');             // 사용자명 (XAMPP 기본값: root)
+define('DB_PASS', '1234');                 // 비밀번호 (XAMPP 기본값: 빈 문자열)
+define('DB_NAME', 'grc_db');      // 데이터베이스 이름 (직접 생성해야 함)
+
+// 문자 인코딩 설정
+mb_internal_encoding('UTF-8');
+mb_http_output('UTF-8');
+
+// 오류 표시 설정 (개발용)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// CORS 헤더 설정
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+// OPTIONS 요청 처리
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
+}
+?>
