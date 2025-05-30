@@ -1,5 +1,5 @@
 <?php
-require_once 'includes/db.php';
+require_once '../includes/db.php';
 
 // 요청 메서드와 데이터 가져오기
 $method = $_SERVER['REQUEST_METHOD'];
@@ -63,19 +63,19 @@ function handle_get($data) {
 function handle_post($data) {
     // 필수 필드 검증
     if (empty($data['userid'])) {
-        error_response('User ID is required');
+        error_response('UID_REQUIRED');
     }
     
     if (empty($data['name'])) {
-        error_response('Name is required');
+        error_response('NAME_REQUIRED');
     }
     
     if (empty($data['email'])) {
-        error_response('Email is required');
+        error_response('EMAIL_REQUIRED');
     }
     
     if (empty($data['password'])) {
-        error_response('Password is required');
+        error_response('PW_REQUIRED');
     }
     
     // 이메일 중복 검사
@@ -83,7 +83,7 @@ function handle_post($data) {
     $existing_email = db_fetch_one("SELECT id FROM users WHERE email = '{$email}'");
     
     if ($existing_email) {
-        error_response('Email already exists');
+        error_response('EXISTING_EMAIL');
     }
     
     // 사용자 ID 중복 검사
@@ -91,13 +91,13 @@ function handle_post($data) {
     $existing_userid = db_fetch_one("SELECT id FROM users WHERE userid = '{$userid}'");
     
     if ($existing_userid) {
-        error_response('User ID already exists');
+        error_response('EXISTING_ID');
     }
     
     // 데이터 준비
     $name = db_escape($data['name']);
     $password_hash = password_hash($data['password'], PASSWORD_DEFAULT);
-    $profile_image = isset($data['profile_image']) ? db_escape($data['profile_image']) : '/images/default-avatar.png';
+    $profile_image = isset($data['profile_image']) ? db_escape($data['profile_image']) : '/Image/default-avatar.png';
     
     // 회원 생성
     $query = "INSERT INTO users (userid, name, email, password, profile_image) 

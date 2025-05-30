@@ -24,7 +24,7 @@ if (!defined('PASSWORD_DEFAULT')) {
     define('PASSWORD_DEFAULT', 1);
 }
 
-// 기존 응답 함수들...
+// ✅ PHP 5.6 호환 - 한글 깨짐 해결된 응답 함수들
 function success_response($data, $message = 'Success') {
     header('Content-Type: application/json; charset=utf-8');
     header('HTTP/1.1 200 OK');
@@ -35,7 +35,9 @@ function success_response($data, $message = 'Success') {
         'data' => $data
     );
     
-    echo json_encode($response);
+    // ✅ PHP 5.6 호환: 한글 유니코드 처리
+    $json = json_encode($response);
+    echo unicode_decode($json);
     exit;
 }
 
@@ -71,7 +73,9 @@ function error_response($message, $code = 400) {
         'error' => $message
     );
     
-    echo json_encode($response);
+    // ✅ PHP 5.6 호환: 한글 유니코드 처리
+    $json = json_encode($response);
+    echo unicode_decode($json);
     exit;
 }
 
@@ -85,7 +89,72 @@ function created_response($data, $message = 'Created') {
         'data' => $data
     );
     
-    echo json_encode($response);
+    // ✅ PHP 5.6 호환: 한글 유니코드 처리
+    $json = json_encode($response);
+    echo unicode_decode($json);
+    exit;
+}
+
+// ✅ PHP 5.6용 유니코드 디코딩 함수
+function unicode_decode($json) {
+    return preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', 'unicode_decode_callback', $json);
+}
+
+// 유니코드 디코딩 콜백 함수 (PHP 5.6 호환)
+function unicode_decode_callback($match) {
+    return mb_convert_encoding(pack('H*', $match[1]), 'UTF-8', 'UCS-2BE');
+}
+
+// ✅ 추가 유틸리티 함수들
+function validate_required($data, $required_fields) {
+    $missing_fields = array();
+    
+    foreach ($required_fields as $field) {
+        if (!isset($data[$field]) || empty($data[$field])) {
+            $missing_fields[] = $field;
+        }
+    }
+    
+    if (!empty($missing_fields)) {
+        error_response('Missing required fields: ' . implode(', ', $missing_fields), 400);
+    }
+    
+    return true;
+}
+
+function validate_email($email) {
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+}
+
+function validate_date($date, $format = 'Y-m-d') {
+    $d = DateTime::createFromFormat($format, $date);
+    return $d && $d->format($format) === $date;
+}
+
+// 페이지네이션 응답 함수
+function paginated_response($data, $page, $per_page, $total, $message = 'Success') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('HTTP/1.1 200 OK');
+    
+    $total_pages = ceil($total / $per_page);
+    
+    $response = array(
+        'success' => true,
+        'message' => $message,
+        'data' => $data,
+        'pagination' => array(
+            'current_page' => (int)$page,
+            'per_page' => (int)$per_page,
+            'total' => (int)$total,
+            'total_pages' => (int)$total_pages,
+            'has_next' => $page < $total_pages,
+            'has_prev' => $page > 1
+        )
+    );
+    
+    // ✅ PHP 5.6 호환: 한글 유니코드 처리
+    $json = json_encode($response);
+    echo unicode_decode($json);
     exit;
 }
 ?>

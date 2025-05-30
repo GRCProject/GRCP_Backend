@@ -1,5 +1,6 @@
 <?php
-require_once 'includes/db.php';
+require_once '../includes/db.php';
+require_once '../includes/auth.php';
 
 // 요청 메서드와 데이터 가져오기
 $method = $_SERVER['REQUEST_METHOD'];
@@ -28,11 +29,11 @@ switch ($method) {
 function handle_login($data) {
     // 필수 필드 검증
     if (empty($data['login']) && empty($data['email']) && empty($data['userid'])) {
-        error_response('Email or User ID is required');
+        error_response('Email or User ID is required',403);
     }
     
     if (empty($data['password'])) {
-        error_response('Password is required');
+        error_response('Password is required',403);
     }
     
     $password = $data['password'];
@@ -57,16 +58,16 @@ function handle_login($data) {
     }
     
     if (!$user) {
-        error_response('Invalid credentials', 401);
+        error_response('Invalid credentials', 403);
     }
     
     // 비밀번호 검증
     if (!password_verify($password, $user['password'])) {
-        error_response('Invalid credentials', 401);
+        error_response('Invalid credentials', 403);
     }
     
     // 간단한 토큰 생성
-    $token = base64_encode($user['id'] . ':' . time() . ':' . $user['userid']);
+    $token = generate_token($user['id'], $user['userid']);
     
     // 응답 (비밀번호 제외)
     success_response(array(
