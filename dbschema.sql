@@ -40,8 +40,8 @@ CREATE TABLE `personal_schedule` (
   `team_member_id` integer NOT NULL,
   `detail_name` varchar(100) NOT NULL,
   `detail_status` varchar(10) COMMENT '미완료, 완료',
-  `created_at` timestamp DEFAULT current_timestamp
-  `sort_order` integer DEFAULT 0,
+  `created_at` timestamp DEFAULT current_timestamp,
+  `sort_order` integer DEFAULT 0
 ) CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE UNIQUE INDEX `team_members_index_0` ON `team_members` (`team_id`, `user_id`);
