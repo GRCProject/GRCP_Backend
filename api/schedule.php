@@ -157,7 +157,13 @@ function handle_create_team_schedule($current_user, $data) {
 // 개인 스케줄(세부사항) 생성
 function handle_create_personal_schedule($current_user, $data) {
     // 입력 검증
-    $required_fields = array('team_schedules_id', 'team_member_id', 'detail_name');
+    $required_fields = array('team_schedules_id', 'detail_name');
+    
+    // team_member_id 또는 user_id 중 하나는 필수
+    if (empty($data['team_member_id']) && empty($data['user_id'])) {
+        error_response('Either team_member_id or user_id is required');
+    }
+    
     foreach ($required_fields as $field) {
         if (empty($data[$field])) {
             error_response(ucfirst(str_replace('_', ' ', $field)) . ' is required');
@@ -165,21 +171,49 @@ function handle_create_personal_schedule($current_user, $data) {
     }
     
     $team_schedules_id = (int)$data['team_schedules_id'];
-    $team_member_id = (int)$data['team_member_id'];
     $detail_name = db_escape(trim($data['detail_name']));
     $detail_status = db_escape(isset($data['detail_status']) ? $data['detail_status'] : '미완료');
     $sort_order = (int)(isset($data['sort_order']) ? $data['sort_order'] : 0);
-    $user_id = $current_user['id'];
+    $current_user_id = (int)$current_user['id'];
+    
+    // ✅ team_member_id 결정 로직
+    if (!empty($data['team_member_id'])) {
+        // 기존 방식: team_member_id 직접 사용
+        $team_member_id = (int)$data['team_member_id'];
+    } else {
+        // 새로운 방식: user_id로 team_member_id 찾기
+        $target_user_id = (int)$data['user_id'];
+        
+        // team_schedules_id로부터 team_id 찾기
+        $team_info = db_fetch_one("SELECT team_id FROM team_schedules WHERE id = $team_schedules_id");
+        if (!$team_info) {
+            error_response('Invalid team schedule ID', 404);
+        }
+        
+        $team_id = (int)$team_info['team_id'];
+        
+        // user_id와 team_id로 team_member_id 찾기
+        $team_member = db_fetch_one("
+            SELECT id FROM team_members 
+            WHERE user_id = $target_user_id AND team_id = $team_id
+        ");
+        
+        if (!$team_member) {
+            error_response('User is not a member of this team', 403);
+        }
+        
+        $team_member_id = (int)$team_member['id'];
+    }
     
     // 권한 확인: 자신의 팀 멤버 ID이거나 팀 관리자여야 함
     $permission_check = db_fetch_one("
-        SELECT tm.user_id, t.admin_id, ts.schedule_name
+        SELECT tm.user_id, t.admin_id, ts.schedule_name, t.team_name
         FROM team_members tm
         JOIN teams t ON tm.team_id = t.id
         JOIN team_schedules ts ON t.id = ts.team_id
-        WHERE tm.id = {$team_member_id} 
-        AND ts.id = {$team_schedules_id}
-        AND (tm.user_id = {$user_id} OR t.admin_id = {$user_id})
+        WHERE tm.id = $team_member_id 
+        AND ts.id = $team_schedules_id
+        AND (tm.user_id = $current_user_id OR t.admin_id = $current_user_id)
     ");
     
     if (!$permission_check) {
@@ -188,20 +222,21 @@ function handle_create_personal_schedule($current_user, $data) {
     
     // 개인 스케줄 생성
     $query = "INSERT INTO personal_schedule (team_schedules_id, team_member_id, detail_name, detail_status, sort_order, created_at) 
-              VALUES ({$team_schedules_id}, {$team_member_id}, '{$detail_name}', '{$detail_status}', {$sort_order}, NOW())";
+              VALUES ($team_schedules_id, $team_member_id, '$detail_name', '$detail_status', $sort_order, NOW())";
     
     if (db_query($query)) {
         // 생성된 개인 스케줄 정보 반환
         $result = db_fetch_one("SELECT LAST_INSERT_ID() as id");
-        $new_personal_id = $result['id'];
+        $new_personal_id = (int)$result['id'];
         
         $personal_schedule = db_fetch_one("
-            SELECT ps.*, u.name as assignee_name, ts.schedule_name as team_schedule_name
+            SELECT ps.*, u.name as assignee_name, u.id as assignee_user_id, 
+                   ts.schedule_name as team_schedule_name, tm.position, tm.role
             FROM personal_schedule ps
             JOIN team_members tm ON ps.team_member_id = tm.id
             JOIN users u ON tm.user_id = u.id
             JOIN team_schedules ts ON ps.team_schedules_id = ts.id
-            WHERE ps.personal_schedule_id = {$new_personal_id}
+            WHERE ps.personal_schedule_id = $new_personal_id
         ");
         
         success_response(array(
